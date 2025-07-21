@@ -1,0 +1,51 @@
+# Docker Compose for SharePoint Tool Foundry
+# Provides a complete development environment
+
+version: '3.8'
+
+services:
+  sharepoint-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sharepoint-tool-foundry
+    environment:
+      - PROJECT_ENDPOINT=${PROJECT_ENDPOINT}
+      - SHAREPOINT_RESOURCE_NAME=${SHAREPOINT_RESOURCE_NAME}
+      - MODEL_DEPLOYMENT_NAME=${MODEL_DEPLOYMENT_NAME}
+      - DEBUG_LOGGING=${DEBUG_LOGGING:-false}
+    volumes:
+      # Mount logs directory for persistent logging
+      - ./logs:/app/logs
+      # Mount .env for local development (optional)
+      - ./.env:/app/.env:ro
+    networks:
+      - sharepoint-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import config; config.Config()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Optional: Add a monitoring service for development
+  monitoring:
+    image: prom/prometheus:latest
+    container_name: sharepoint-monitoring
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    networks:
+      - sharepoint-network
+    profiles:
+      - monitoring
+
+networks:
+  sharepoint-network:
+    driver: bridge
+
+volumes:
+  sharepoint-logs:
+    driver: local
